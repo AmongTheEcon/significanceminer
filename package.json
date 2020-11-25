@@ -1,0 +1,36 @@
+{
+  "name": "significanceminer",
+  "version": "1.0.0",
+  "description": "Uses p-hacking and data dredging techniques to find statistically significant differences between data sets.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "test": "mocha --reporter spec",
+    "build": "tsc"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/omedalus/significanceminer.git"
+  },
+  "keywords": [
+    "data",
+    "analytics",
+    "statistics"
+  ],
+  "author": "Mighty Data, Inc.",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/omedalus/significanceminer/issues"
+  },
+  "homepage": "https://github.com/omedalus/significanceminer#readme",
+  "devDependencies": {
+    "@types/pluralize": "0.0.29",
+    "chai": "^4.2.0",
+    "mocha": "^8.2.1",
+    "typescript": "^4.1.2"
+  },
+  "dependencies": {
+    "pluralize": "^8.0.0",
+    "ttest": "^3.0.0"
+  }
+}
