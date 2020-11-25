@@ -30,7 +30,6 @@
     "typescript": "^4.1.2"
   },
   "dependencies": {
-    "pluralize": "^8.0.0",
     "ttest": "^3.0.0"
   }
 }
