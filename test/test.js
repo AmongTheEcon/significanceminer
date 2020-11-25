@@ -1,13 +1,13 @@
 'use strict';
 
-let expect = require('chai').expect;
-let index = require('../dist/index.js');
+const expect = require('chai').expect;
+const { SignificanceMiner } = require('../dist/index.js');
 
-describe('getPlural function test', () => {
-  it('should return Boys', () => {
-    let result = index.getPlural('Boy');
-    expect(result).to.equal('Boys');
+describe('significanceMiner tests', () => {
+  it('should create an instance', () => {
+    const sminer = new SignificanceMiner([], []);
   });
+/*
   it('should return Girls', () => {
     let result = index.getPlural('Girl');
     expect(result).to.equal('Girls');
@@ -24,4 +24,5 @@ describe('getPlural function test', () => {
     let result = index.getPlural('Man');
     expect(result).to.equal('Men');
   });
+*/
 });
