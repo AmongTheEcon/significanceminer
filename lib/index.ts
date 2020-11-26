@@ -25,8 +25,7 @@ export abstract class StatisticallySignificantDifferenceTest {
 
 export class MeanDifferenceTest extends StatisticallySignificantDifferenceTest{
   public get explanation(): string {
-    return 'The tested population\'s average is different from the common population\'s average, ' +
-        'and this difference cannot be explained by mere chance.';
+    return 'The tested population\'s average is different from the common population\'s average.'
   }
 
   public test(
@@ -59,6 +58,87 @@ export class MeanDifferenceTest extends StatisticallySignificantDifferenceTest{
     return retval;
   }
 };
+
+
+export class DisproportionateNtileRepresentationTest extends StatisticallySignificantDifferenceTest{
+  public constructor(public ntile: number) {
+    super();
+    if (!this.ntile) {
+      throw new TypeError('ntile cannot be 0.');
+    }
+    if (Math.abs(this.ntile) > 1) {
+      throw new TypeError('ntile cannot be greater than 100%.');
+    }
+  }
+
+  public get explanation(): string {
+    let s = 'The tested population is disproportionately represented in the ';
+    s += this.ntile > 0 ? 'upper' : 'lower';
+    s += ' ' + Math.ceil(this.ntile * 100) + '%';
+    s += ' of the combined population.';
+    return s;
+  }
+
+  public test(
+    popInterested: number[],
+    popCommon: number[],
+    options?: {
+      alpha?: number
+    }): StatisticallySignificantDifference | null {
+
+    if (!popInterested.length || !popCommon.length) {
+      return null;
+    }
+
+    const popMerged = [] as Array<[number, boolean]>;
+    popInterested.forEach((x: number) => {popMerged.push([x, true])});
+    popCommon.forEach((x: number) => {popMerged.push([x, false])});
+
+    popMerged.sort((a, b) => a[0] == b[0] ? 0 : a[0] > b[0] ? 1 : -1);
+    if (this.ntile > 0) {
+      // popMerged is sorted from smallest to largest. If we're taking
+      // the upper ntile, we want the opposite.
+      popMerged.reverse();
+    }
+
+    const p0 = popInterested.length / popMerged.length;
+    const n = Math.ceil(popMerged.length * Math.abs(this.ntile));
+    if (!n) {
+      return null;
+    }
+
+    const popSlicedNtile = popMerged.slice(0, n + 1);
+    const numInterestedInSlice =
+        popSlicedNtile.reduce((acc, v) => acc + (v[1] ? 1 : 0), 0);
+
+    console.log(popSlicedNtile)
+
+    const numExpected = Math.floor(p0 * popSlicedNtile.length);
+    if (!numExpected) {
+      return null;
+    }
+
+    const proportionRepresented = numInterestedInSlice / numExpected;
+    console.log(`${numInterestedInSlice} / ${numExpected} = ${proportionRepresented}`);
+
+    if (proportionRepresented === 1) {
+      return null;
+    }
+
+    // The representation is disproportionate.
+    // But is the difference statistically significant?
+    // TODO: Add binomial test here.
+    const alpha = (options && options.alpha) || 0.05;
+    const pValue = 0; //ttest(popInterested, popCommon).pValue();
+    if (pValue >= alpha) {
+      return null;
+    }
+
+    const retval = new StatisticallySignificantDifference(proportionRepresented, pValue, this);
+    return retval;
+  }
+};
+
 
 
 export function findStatisticallySignificantDifference(
