@@ -11,6 +11,7 @@ export class StatisticallySignificantDifference {
 };
 
 import ttest from 'ttest';
+import distributions from 'distributions';
 
 export abstract class StatisticallySignificantDifferenceTest {
   public abstract test(
@@ -108,7 +109,7 @@ export class DisproportionateNtileRepresentationTest extends StatisticallySignif
     }
 
     const popSlicedNtile = popMerged.slice(0, n + 1);
-    const numInterestedInSlice =
+    const numObserved =
         popSlicedNtile.reduce((acc, v) => acc + (v[1] ? 1 : 0), 0);
 
     console.log(popSlicedNtile)
@@ -118,8 +119,8 @@ export class DisproportionateNtileRepresentationTest extends StatisticallySignif
       return null;
     }
 
-    const proportionRepresented = numInterestedInSlice / numExpected;
-    console.log(`${numInterestedInSlice} / ${numExpected} = ${proportionRepresented}`);
+    const proportionRepresented = numObserved / numExpected;
+    console.log(`${numObserved} / ${numExpected} = ${proportionRepresented}`);
 
     if (proportionRepresented === 1) {
       return null;
@@ -128,8 +129,14 @@ export class DisproportionateNtileRepresentationTest extends StatisticallySignif
     // The representation is disproportionate.
     // But is the difference statistically significant?
     // TODO: Add binomial test here.
+    const binomDist =  distributions.Binomial(p0, popSlicedNtile.length);
+    let pValue = binomDist.cdf(numObserved);
+    // Two-tailed.
+    if (pValue > .5) {
+      pValue = 1 - pValue;
+    }
+    pValue *= 2;
     const alpha = (options && options.alpha) || 0.05;
-    const pValue = 0; //ttest(popInterested, popCommon).pValue();
     if (pValue >= alpha) {
       return null;
     }
@@ -146,16 +153,26 @@ export function findStatisticallySignificantDifference(
     popCommon: number[],
     options?: {
       alpha?: number
-    }): StatisticallySignificantDifference | null{
+    }): Array<StatisticallySignificantDifference> {
 
-  let retval = null as StatisticallySignificantDifference | null;
+  let retval = [] as Array<StatisticallySignificantDifference>;
 
   let t = new MeanDifferenceTest();
-  retval = t.test(popInterested, popCommon, options);
-  if (retval) {
-    return retval;
+  let tResult = t.test(popInterested, popCommon, options);
+  if (tResult) {
+    retval.push(tResult);
   }
 
-  return null;
+  const ntiles = [0.5, 0.25, 0.10, 0.05, -0.5, -0.25, -0.10, -0.05];
+  for (let ntile of ntiles) {
+    t = new DisproportionateNtileRepresentationTest(ntile);
+    tResult = t.test(popInterested, popCommon, options);
+    if (tResult) {
+      retval.push(tResult);
+      break;
+    }
+  }
+
+  return retval;
 }
 
