@@ -12,11 +12,12 @@ export class StatisticallySignificantDifference {
 
 import ttest from 'ttest';
 import distributions from 'distributions';
+import stats from 'stats-analysis';
 
 export abstract class StatisticallySignificantDifferenceTest {
   public abstract test(
-    popInterested: number[],
-    popCommon: number[],
+    popTested: number[],
+    popControl: number[],
     options?: {
       alpha?: number
     }): StatisticallySignificantDifference | null;
@@ -25,24 +26,38 @@ export abstract class StatisticallySignificantDifferenceTest {
 };
 
 export class MeanDifferenceTest extends StatisticallySignificantDifferenceTest{
+  public constructor(public isFilteringOutliers = false) {
+    super();
+  }
+
   public get explanation(): string {
-    return 'The tested population\'s average is different from the common population\'s average.'
+    let s = 'The tested population\'s average is different from the common population\'s average';
+    if (this.isFilteringOutliers) {
+      s += ` after filtering outliers`;
+    }
+    s += '.';
+    return s;
   }
 
   public test(
-    popInterested: number[],
-    popCommon: number[],
+    popTested: number[],
+    popControl: number[],
     options?: {
       alpha?: number
     }): StatisticallySignificantDifference | null {
 
-    if (!popInterested.length || !popCommon.length) {
+    if (!popTested.length || !popControl.length) {
       return null;
     }
 
-    const meanInterested = popInterested.reduce((a,b) => a + b, 0) / popInterested.length;
-    const meanCommon = popCommon.reduce((a,b) => a + b, 0) / popCommon.length;
-    const meanDiff = meanInterested - meanCommon;
+    if (this.isFilteringOutliers) {
+      popTested = stats.filterOutliers(popTested);
+      popControl = stats.filterOutliers(popControl);
+    }
+
+    let meanTested = stats.mean(popTested);
+    let meanControl = stats.mean(popControl);
+    const meanDiff = meanTested - meanControl;
 
     if (meanDiff === 0) {
       return null;
@@ -50,7 +65,7 @@ export class MeanDifferenceTest extends StatisticallySignificantDifferenceTest{
 
     // The two means are different. But is the difference statistically significant?
     const alpha = (options && options.alpha) || 0.05;
-    const pValue = ttest(popInterested, popCommon).pValue();
+    const pValue = ttest(popTested, popControl).pValue();
     if (pValue >= alpha) {
       return null;
     }
@@ -81,19 +96,19 @@ export class DisproportionateNtileRepresentationTest extends StatisticallySignif
   }
 
   public test(
-    popInterested: number[],
-    popCommon: number[],
+    popTested: number[],
+    popControl: number[],
     options?: {
       alpha?: number
     }): StatisticallySignificantDifference | null {
 
-    if (!popInterested.length || !popCommon.length) {
+    if (!popTested.length || !popControl.length) {
       return null;
     }
 
     const popMerged = [] as Array<[number, boolean]>;
-    popInterested.forEach((x: number) => {popMerged.push([x, true])});
-    popCommon.forEach((x: number) => {popMerged.push([x, false])});
+    popTested.forEach((x: number) => {popMerged.push([x, true])});
+    popControl.forEach((x: number) => {popMerged.push([x, false])});
 
     popMerged.sort((a, b) => a[0] == b[0] ? 0 : a[0] > b[0] ? 1 : -1);
     if (this.ntile > 0) {
@@ -102,7 +117,7 @@ export class DisproportionateNtileRepresentationTest extends StatisticallySignif
       popMerged.reverse();
     }
 
-    const p0 = popInterested.length / popMerged.length;
+    const p0 = popTested.length / popMerged.length;
     const n = Math.ceil(popMerged.length * Math.abs(this.ntile));
     if (!n) {
       return null;
@@ -112,15 +127,12 @@ export class DisproportionateNtileRepresentationTest extends StatisticallySignif
     const numObserved =
         popSlicedNtile.reduce((acc, v) => acc + (v[1] ? 1 : 0), 0);
 
-    console.log(popSlicedNtile)
-
     const numExpected = Math.floor(p0 * popSlicedNtile.length);
     if (!numExpected) {
       return null;
     }
 
     const proportionRepresented = numObserved / numExpected;
-    console.log(`${numObserved} / ${numExpected} = ${proportionRepresented}`);
 
     if (proportionRepresented === 1) {
       return null;
@@ -149,16 +161,19 @@ export class DisproportionateNtileRepresentationTest extends StatisticallySignif
 
 
 export function findStatisticallySignificantDifference(
-    popInterested: number[],
-    popCommon: number[],
+    popTested: number[],
+    popControl: number[],
     options?: {
       alpha?: number
     }): Array<StatisticallySignificantDifference> {
 
   let retval = [] as Array<StatisticallySignificantDifference>;
 
-  let t = new MeanDifferenceTest();
-  let tResult = t.test(popInterested, popCommon, options);
+  let t = null as StatisticallySignificantDifferenceTest | null;
+  let tResult = null as StatisticallySignificantDifference | null;
+
+  t = new MeanDifferenceTest();
+  tResult = t.test(popTested, popControl, options);
   if (tResult) {
     retval.push(tResult);
   }
@@ -166,7 +181,7 @@ export function findStatisticallySignificantDifference(
   const ntiles = [0.5, 0.25, 0.10, 0.05, -0.5, -0.25, -0.10, -0.05];
   for (let ntile of ntiles) {
     t = new DisproportionateNtileRepresentationTest(ntile);
-    tResult = t.test(popInterested, popCommon, options);
+    tResult = t.test(popTested, popControl, options);
     if (tResult) {
       retval.push(tResult);
       break;

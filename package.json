@@ -31,6 +31,7 @@
   },
   "dependencies": {
     "distributions": "^2.1.0",
+    "stats-analysis": "^2.0.0",
     "ttest": "^3.0.0"
   }
 }
